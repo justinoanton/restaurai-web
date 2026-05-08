@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RestaurAI — Llenamos restaurantes entre semana</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── VARIABLES ── */
+:root {
+  --gold:    #C9A84C;
+  --gold-2:  #E2C97E;
+  --gold-dim:#8A6A28;
+  --black:   #0A0A0A;
+  --black-2: #111111;
+  --black-3: #181818;
+  --black-4: #242424;
+  --white:   #F4F0EA;
+  --white-2: #D4CCC0;
+  --white-3: #8A8278;
+  --display: 'Playfair Display', Georgia, serif;
+  --body:    'Outfit', system-ui, sans-serif;
+}
+
+/* ── RESET ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--black);color:var(--white);
+  font-family:var(--body);font-weight:300;
+  overflow-x:hidden;cursor:none;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── CURSOR — solo desktop con puntero fino ── */
+#cur,#cur-r{pointer-events:none;position:fixed;z-index:9999;transform:translate(-50%,-50%);}
+#cur  {width:6px;height:6px;background:var(--gold);border-radius:50%;transition:transform .1s;}
+#cur-r{width:28px;height:28px;border:1px solid var(--gold-dim);border-radius:50%;z-index:9998;transition:width .3s,height .3s,border-color .3s;}
+
+@media(max-width:768px),(pointer:coarse){
+  body{cursor:auto !important;}
+  #cur,#cur-r{display:none !important;}
+}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.75rem 5rem;
+  transition:background .4s,padding .4s;
+}
+nav.scrolled{
+  background:rgba(10,10,10,.97);
+  padding:1.25rem 5rem;
+  border-bottom:1px solid rgba(201,168,76,.08);
+}
+.logo{font-family:var(--display);font-size:1.35rem;font-weight:500;color:var(--white);text-decoration:none;letter-spacing:.04em;}
+.logo span{color:var(--gold);}
+.nav-links{display:flex;gap:2.5rem;list-style:none;}
+.nav-links a{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--white-2);text-decoration:none;transition:color .25s;}
+.nav-links a:hover{color:var(--gold);}
+.nav-btn{
+  font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;font-weight:500;
+  padding:.65rem 1.6rem;background:var(--gold);color:var(--black);
+  text-decoration:none;border:none;cursor:pointer;font-family:var(--body);
+  transition:background .25s,transform .2s;
+}
+.nav-btn:hover{background:var(--gold-2);transform:translateY(-1px);}
+
+/* ── HERO ── */
+.hero{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;padding:10rem 2rem 7rem;
+  position:relative;overflow:hidden;
+}
+.hero-glow{
+  position:absolute;width:700px;height:700px;
+  background:radial-gradient(circle,rgba(201,168,76,.09) 0%,transparent 65%);
+  left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
+}
+.hero-tag{
+  display:inline-flex;align-items:center;gap:.75rem;
+  font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);
+  margin-bottom:2.5rem;opacity:0;animation:up .8s ease forwards .15s;
+}
+.hero-tag::before,.hero-tag::after{content:'';width:24px;height:1px;background:var(--gold-dim);}
+.hero-h1{
+  font-family:var(--display);
+  font-size:clamp(3.2rem,7.5vw,7rem);
+  font-weight:500;line-height:1.06;letter-spacing:-.02em;max-width:820px;
+  opacity:0;animation:up 1s ease forwards .35s;
+}
+.hero-h1 em{font-style:italic;color:var(--gold);}
+.hero-rule{
+  width:50px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  margin:2.5rem auto;opacity:0;animation:up .6s ease forwards .65s;
+}
+.hero-sub{
+  font-size:1.05rem;font-weight:300;color:var(--white-2);
+  max-width:480px;line-height:1.85;
+  opacity:0;animation:up .8s ease forwards .8s;
+}
+.hero-ctas{
+  display:flex;gap:1.25rem;margin-top:3rem;
+  justify-content:center;flex-wrap:wrap;
+  opacity:0;animation:up .8s ease forwards 1s;
+}
+.btn-main{
+  font-size:.73rem;letter-spacing:.12em;text-transform:uppercase;font-weight:600;
+  padding:1.1rem 2.8rem;background:var(--gold);color:var(--black);
+  text-decoration:none;display:inline-block;border:none;cursor:pointer;
+  font-family:var(--body);transition:background .25s,transform .2s;
+}
+.btn-main:hover{background:var(--gold-2);transform:translateY(-2px);}
+.btn-ghost{
+  font-size:.73rem;letter-spacing:.12em;text-transform:uppercase;font-weight:400;
+  padding:1.1rem 2.4rem;border:1px solid rgba(201,168,76,.3);
+  color:var(--white-2);text-decoration:none;
+  transition:border-color .25s,color .25s;
+}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+.hero-proof{
+  margin-top:5rem;display:flex;gap:2.5rem;
+  justify-content:center;align-items:center;flex-wrap:wrap;
+  opacity:0;animation:up .8s ease forwards 1.25s;
+}
+.proof-item{font-size:.72rem;letter-spacing:.1em;color:var(--white-3);text-transform:uppercase;}
+.proof-dot{width:3px;height:3px;background:var(--gold-dim);border-radius:50%;}
+.scroll-hint{
+  position:absolute;bottom:2.5rem;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:.5rem;
+  opacity:0;animation:fadein 1s ease forwards 1.8s;
+}
+.scroll-hint span{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--white-3);}
+.scroll-line{
+  width:1px;height:36px;
+  background:linear-gradient(to bottom,var(--gold-dim),transparent);
+  animation:drip 2s ease-in-out infinite;
+}
+@keyframes drip{
+  0%  {transform:scaleY(0);transform-origin:top;opacity:0}
+  50% {transform:scaleY(1);transform-origin:top;opacity:1}
+  100%{transform:scaleY(0);transform-origin:bottom;opacity:0}
+}
+
+/* ── TRUST BAR ── */
+.trust-bar{
+  background:var(--black-2);
+  border-top:1px solid rgba(201,168,76,.07);
+  border-bottom:1px solid rgba(201,168,76,.07);
+  padding:1.75rem 5rem;
+  display:flex;align-items:center;justify-content:center;gap:4rem;flex-wrap:wrap;
+}
+.trust-item{display:flex;align-items:center;gap:.75rem;}
+.trust-icon{color:var(--gold);font-size:.8rem;}
+.trust-text{font-size:.73rem;letter-spacing:.06em;color:var(--white-2);}
+
+/* ── SECTIONS SHARED ── */
+section{padding:8rem 5rem;}
+.section-eyebrow{
+  display:inline-flex;align-items:center;gap:.65rem;
+  font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);
+  margin-bottom:1.25rem;
+}
+.section-eyebrow::before{content:'';width:20px;height:1px;background:var(--gold);}
+h2.display{
+  font-family:var(--display);
+  font-size:clamp(2rem,4vw,3.6rem);
+  font-weight:500;line-height:1.12;letter-spacing:-.01em;
+}
+h2.display em{font-style:italic;color:var(--gold);}
+
+/* ── PROBLEMA ── */
+.problema{background:var(--black);}
+.problema-inner{display:grid;grid-template-columns:1fr 1fr;gap:7rem;align-items:start;max-width:1200px;margin:0 auto;}
+.problema-left{position:sticky;top:10rem;}
+.problema-body{font-size:.95rem;color:var(--white-2);line-height:1.9;margin-top:1.75rem;max-width:420px;}
+.problema-right{display:flex;flex-direction:column;gap:1px;}
+.pain-card{
+  display:flex;gap:1.5rem;align-items:flex-start;padding:2rem;
+  background:var(--black-2);border-left:2px solid transparent;
+  transition:border-color .3s,background .3s;
+}
+.pain-card:hover{background:var(--black-3);border-left-color:var(--gold);}
+.pain-num{font-family:var(--display);font-size:1.5rem;color:var(--gold-dim);flex-shrink:0;margin-top:.1rem;line-height:1;}
+.pain-title{font-size:.9rem;font-weight:500;color:var(--white);margin-bottom:.4rem;}
+.pain-desc{font-size:.82rem;color:var(--white-3);line-height:1.7;}
+
+/* ── SOLUCIÓN ── */
+.solucion{background:var(--black-2);}
+.solucion-inner{max-width:1200px;margin:0 auto;}
+.solucion-header{margin-bottom:4.5rem;max-width:640px;}
+.solucion-header p{font-size:.95rem;color:var(--white-2);line-height:1.85;margin-top:1.5rem;}
+.servicios-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(201,168,76,.07);}
+.servicio{
+  background:var(--black-2);padding:2.5rem 2rem;
+  position:relative;overflow:hidden;transition:background .35s;
+}
+.servicio::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:var(--gold);transform:scaleX(0);transform-origin:left;
+  transition:transform .4s ease;
+}
+.servicio:hover{background:var(--black-3);}
+.servicio:hover::after{transform:scaleX(1);}
+.servicio-num{font-family:var(--display);font-size:.8rem;color:var(--gold-dim);margin-bottom:1.5rem;letter-spacing:.1em;}
+.servicio-title{font-size:1.05rem;font-weight:500;color:var(--white);margin-bottom:.65rem;line-height:1.3;}
+.servicio-desc{font-size:.82rem;color:var(--white-3);line-height:1.75;}
+.servicio-tag{
+  display:inline-block;margin-top:1.25rem;font-size:.6rem;
+  letter-spacing:.12em;text-transform:uppercase;
+  padding:.3rem .85rem;border:1px solid rgba(201,168,76,.2);color:var(--gold-dim);
+}
+
+/* ── PROCESO ── */
+.proceso{background:var(--black);}
+.proceso-inner{max-width:1200px;margin:0 auto;}
+.proceso-header{margin-bottom:5rem;}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:2rem;position:relative;}
+.steps::before{
+  content:'';position:absolute;top:1.6rem;left:3%;right:3%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold-dim),var(--gold-dim),transparent);
+  opacity:.25;
+}
+.step{position:relative;padding-top:4.5rem;}
+.step-marker{
+  position:absolute;top:0;left:0;width:3.2rem;height:3.2rem;
+  border:1px solid var(--gold-dim);
+  display:flex;align-items:center;justify-content:center;
+  transition:background .3s,border-color .3s;
+}
+.step:hover .step-marker{background:var(--gold);border-color:var(--gold);}
+.step-marker span{font-family:var(--display);font-size:.95rem;color:var(--gold);transition:color .3s;}
+.step:hover .step-marker span{color:var(--black);}
+.step-title{font-size:1rem;font-weight:500;color:var(--white);margin-bottom:.6rem;}
+.step-desc{font-size:.82rem;color:var(--white-3);line-height:1.75;}
+
+/* ── POR QUÉ ── */
+.porque{background:var(--black-2);}
+.porque-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:7rem;align-items:center;}
+.porque-left p{font-size:.95rem;color:var(--white-2);line-height:1.9;margin-top:1.75rem;}
+.porque-left .btn-main{margin-top:2.5rem;}
+.porque-right{display:flex;flex-direction:column;gap:1.5rem;}
+.razon{
+  display:flex;gap:1.25rem;align-items:flex-start;padding:1.5rem;
+  background:var(--black-3);border-top:1px solid rgba(201,168,76,.07);
+  transition:border-top-color .3s;
+}
+.razon:hover{border-top-color:var(--gold);}
+.razon-icon{color:var(--gold);flex-shrink:0;margin-top:.2rem;}
+.razon-title{font-size:.9rem;font-weight:500;color:var(--white);margin-bottom:.35rem;}
+.razon-desc{font-size:.8rem;color:var(--white-3);line-height:1.7;}
+
+/* ── PARA QUIÉN ── */
+.para-quien{background:var(--black);text-align:center;}
+.para-quien-inner{max-width:1000px;margin:0 auto;}
+.para-quien h2{margin-bottom:1.25rem;}
+.para-quien-sub{font-size:.95rem;color:var(--white-2);line-height:1.85;margin-bottom:4rem;}
+.tipos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(201,168,76,.07);text-align:left;}
+.tipo{background:var(--black);padding:2.25rem 1.75rem;transition:background .3s;}
+.tipo:hover{background:var(--black-2);}
+.tipo-icon{font-size:1.4rem;margin-bottom:1rem;}
+.tipo-title{font-size:.95rem;font-weight:500;color:var(--white);margin-bottom:.5rem;}
+.tipo-desc{font-size:.8rem;color:var(--white-3);line-height:1.65;}
+
+/* ── CTA FINAL ── */
+.cta-final{
+  background:var(--black-2);
+  border-top:1px solid rgba(201,168,76,.08);
+  text-align:center;padding:10rem 5rem;
+  position:relative;overflow:hidden;
+}
+.cta-glow{
+  position:absolute;width:600px;height:600px;
+  background:radial-gradient(circle,rgba(201,168,76,.07) 0%,transparent 70%);
+  left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
+}
+.cta-final .section-eyebrow{justify-content:center;}
+.cta-final h2{margin:.75rem auto 1.5rem;max-width:560px;position:relative;z-index:1;}
+.cta-final > p{font-size:.95rem;color:var(--white-2);line-height:1.85;max-width:420px;margin:0 auto 3rem;position:relative;z-index:1;}
+.cta-final .hero-ctas{position:relative;z-index:1;}
+.cta-note{font-size:.72rem;color:var(--white-3);margin-top:1.5rem;letter-spacing:.05em;position:relative;z-index:1;}
+
+/* ── FORMULARIO AUDITORÍA ── */
+.auditoria{background:var(--black);border-top:1px solid rgba(201,168,76,.08);}
+.auditoria-inner{max-width:860px;margin:0 auto;}
+.auditoria-header{margin-bottom:3.5rem;}
+.auditoria-sub{font-size:.93rem;color:var(--white-2);line-height:1.85;margin-top:1.25rem;max-width:520px;}
+
+.audit-form{display:flex;flex-direction:column;gap:1.5rem;position:relative;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;}
+.form-group{display:flex;flex-direction:column;gap:.5rem;}
+.form-group--full{grid-column:1/-1;}
+.form-group label{
+  font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--white-2);
+}
+.req{color:var(--gold);}
+.form-group input,
+.form-group select,
+.form-group textarea{
+  background:var(--black-3);
+  border:1px solid rgba(201,168,76,.15);
+  color:var(--white);
+  font-family:var(--body);font-size:.88rem;font-weight:300;
+  padding:.85rem 1rem;outline:none;
+  -webkit-appearance:none;appearance:none;border-radius:0;
+  resize:vertical;
+  transition:border-color .25s,background .25s;
+}
+.form-group input::placeholder,
+.form-group textarea::placeholder{color:var(--white-3);}
+.form-group select option{background:var(--black-3);color:var(--white);}
+.form-group select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238A6A28' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 1rem center;
+  padding-right:2.5rem;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus{
+  border-color:var(--gold);background:var(--black-4);
+}
+.form-group input.error,
+.form-group select.error,
+.form-group textarea.error{border-color:#9B3A2E;}
+
+.form-footer{display:flex;align-items:center;gap:2rem;flex-wrap:wrap;}
+.form-submit{border:none;cursor:pointer;font-family:var(--body);}
+.form-legal{font-size:.72rem;color:var(--white-3);line-height:1.5;max-width:340px;}
+
+/* Estado de envío */
+.form-state{display:none;}
+.form-state.active{display:flex;flex-direction:column;align-items:center;text-align:center;padding:3.5rem;background:var(--black-2);border:1px solid rgba(201,168,76,.15);}
+.state-icon{font-size:1.5rem;color:var(--gold);margin-bottom:1.25rem;animation:pulse 2s ease infinite;}
+.state-title{font-family:var(--display);font-size:1.6rem;color:var(--white);margin-bottom:.6rem;}
+.state-desc{font-size:.88rem;color:var(--white-2);line-height:1.7;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* Spinner de envío */
+.btn-main.sending{opacity:.7;pointer-events:none;}
+.btn-main.sending::after{
+  content:'';display:inline-block;width:12px;height:12px;
+  border:2px solid var(--black);border-top-color:transparent;
+  border-radius:50%;animation:spin .7s linear infinite;
+  margin-left:.75rem;vertical-align:middle;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── CAMPOS CON PREFIJO (@, +34) ── */
+.input-prefix-wrap{
+  display:flex;align-items:stretch;
+  border:1px solid rgba(201,168,76,.15);
+  background:var(--black-3);
+  transition:border-color .25s,background .25s;
+}
+.input-prefix-wrap:focus-within{
+  border-color:var(--gold);
+  background:var(--black-4);
+}
+.input-prefix-wrap.error{border-color:#9B3A2E;}
+.input-prefix{
+  display:flex;align-items:center;
+  padding:0 .85rem;
+  font-size:.82rem;font-weight:500;
+  color:var(--gold);
+  background:rgba(201,168,76,.06);
+  border-right:1px solid rgba(201,168,76,.15);
+  white-space:nowrap;user-select:none;flex-shrink:0;
+}
+.input-with-prefix{
+  flex:1;
+  background:transparent !important;
+  border:none !important;
+  padding:.85rem .9rem !important;
+  color:var(--white);
+  font-family:var(--body);font-size:.88rem;font-weight:300;
+  outline:none;min-width:0;
+}
+.input-with-prefix::placeholder{color:var(--white-3);}
+/* Override del estado error en inputs dentro del wrap */
+.input-prefix-wrap.error .input-with-prefix{ border:none !important; }
+
+/* ── FOOTER ── */
+footer{
+  background:var(--black);
+  border-top:1px solid rgba(255,255,255,.04);
+  padding:2.5rem 5rem;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;
+}
+.footer-logo{font-family:var(--display);font-size:1.1rem;color:var(--white);}
+.footer-logo span{color:var(--gold);}
+.footer-links{display:flex;gap:2rem;}
+.footer-links a{
+  font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--white-3);text-decoration:none;transition:color .25s;
+}
+.footer-links a:hover{color:var(--gold);}
+.footer-copy{font-size:.68rem;color:rgba(138,130,120,.5);letter-spacing:.05em;}
+
+/* ── ANIMACIONES ── */
+@keyframes up   {from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .8s ease,transform .8s ease;}
+.reveal.in{opacity:1;transform:translateY(0);}
+.reveal-d1{transition-delay:.1s;}
+.reveal-d2{transition-delay:.2s;}
+.reveal-d3{transition-delay:.3s;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){
+  nav,footer{padding-left:2.5rem;padding-right:2.5rem;}
+  nav.scrolled{padding-left:2.5rem;padding-right:2.5rem;}
+  .trust-bar{padding-left:2.5rem;padding-right:2.5rem;}
+  section{padding-left:2.5rem;padding-right:2.5rem;}
+  .problema-inner,.porque-inner{grid-template-columns:1fr;gap:3.5rem;}
+  .problema-left{position:static;}
+  .servicios-grid{grid-template-columns:repeat(2,1fr);}
+  .steps{grid-template-columns:repeat(2,1fr);}
+  .steps::before{display:none;}
+  .tipos-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:680px){
+  nav{padding:1.25rem 1.5rem;}
+  nav.scrolled{padding:1rem 1.5rem;}
+  .nav-links{display:none;}
+  section{padding:5rem 1.5rem;}
+  footer{flex-direction:column;text-align:center;padding:2rem 1.5rem;}
+  .footer-links{justify-content:center;}
+  .trust-bar{padding:1.5rem;gap:1.5rem;flex-direction:column;align-items:flex-start;}
+  .servicios-grid,.tipos-grid{grid-template-columns:1fr;}
+  .steps{grid-template-columns:1fr;}
+  .hero-ctas{flex-direction:column;align-items:center;}
+  .cta-final{padding:6rem 1.5rem;}
+  .form-row{grid-template-columns:1fr;}
+  .form-footer{flex-direction:column;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<!-- Cursor (solo desktop) -->
+<div id="cur"></div>
+<div id="cur-r"></div>
+
+<!-- ══════════ NAV ══════════ -->
+<nav id="nav">
+  <a href="#" class="logo">Restaur<span>AI</span></a>
+  <ul class="nav-links">
+    <li><a href="#problema">El problema</a></li>
+    <li><a href="#solucion">Servicios</a></li>
+    <li><a href="#proceso">Cómo funciona</a></li>
+    <li><a href="#auditoria">Contacto</a></li>
+  </ul>
+  <button class="nav-btn js-scroll-form">Auditoría gratuita</button>
+</nav>
+
+<!-- ══════════ HERO ══════════ -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-tag">restaurai.agency</div>
+  <h1 class="hero-h1">Llenamos tu restaurante<br><em>entre semana.</em></h1>
+  <div class="hero-rule"></div>
+  <p class="hero-sub">Campañas locales, contenido y automatización diseñados para generar reservas reales — no solo seguidores.</p>
+  <div class="hero-ctas">
+    <button class="btn-main js-scroll-form">Quiero más reservas</button>
+    <a href="#proceso" class="btn-ghost">Ver cómo funciona</a>
+  </div>
+  <div class="hero-proof">
+    <span class="proof-item">Especialistas en restauración</span>
+    <div class="proof-dot"></div>
+    <span class="proof-item">Auditoría gratuita</span>
+    <div class="proof-dot"></div>
+    <span class="proof-item">Sin permanencia</span>
+  </div>
+  <div class="scroll-hint">
+    <span>Descubrir</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ══════════ TRUST BAR ══════════ -->
+<div class="trust-bar">
+  <div class="trust-item"><span class="trust-icon">◆</span><span class="trust-text">Campañas locales de captación</span></div>
+  <div class="trust-item"><span class="trust-icon">◆</span><span class="trust-text">Gestión de reservas automatizada</span></div>
+  <div class="trust-item"><span class="trust-icon">◆</span><span class="trust-text">Contenido para Instagram y TikTok</span></div>
+  <div class="trust-item"><span class="trust-icon">◆</span><span class="trust-text">Reputación y reseñas online</span></div>
+  <div class="trust-item"><span class="trust-icon">◆</span><span class="trust-text">Sin comisiones por reserva</span></div>
+</div>
+
+<!-- ══════════ PROBLEMA ══════════ -->
+<section class="problema" id="problema">
+  <div class="problema-inner">
+    <div class="problema-left reveal">
+      <div class="section-eyebrow">El problema</div>
+      <h2 class="display">El lunes y el martes<br>no se llenan solos.</h2>
+      <p class="problema-body">Tienes un buen restaurante. La cocina funciona. El equipo es sólido. Pero entre semana, las mesas vacías son margen que se pierde cada noche.<br><br>El problema no es el restaurante. Es que nadie está trabajando activamente para llenarlo.</p>
+    </div>
+    <div class="problema-right">
+      <div class="pain-card reveal reveal-d1">
+        <div class="pain-num">01</div>
+        <div><div class="pain-title">Reservas que se pierden en silencio</div><div class="pain-desc">El teléfono suena en pleno servicio y nadie puede atenderlo. El cliente no llama dos veces. La mesa queda vacía.</div></div>
+      </div>
+      <div class="pain-card reveal reveal-d2">
+        <div class="pain-num">02</div>
+        <div><div class="pain-title">Redes sociales que no generan clientes</div><div class="pain-desc">Publicaciones esporádicas, sin estrategia, sin constancia. Seguidores que nunca se convierten en comensales.</div></div>
+      </div>
+      <div class="pain-card reveal reveal-d3">
+        <div class="pain-num">03</div>
+        <div><div class="pain-title">Invisible en Google para tu zona</div><div class="pain-desc">Cuando alguien busca "restaurante cerca" en tu barrio, aparecen tus competidores. No tú. Eso tiene solución.</div></div>
+      </div>
+      <div class="pain-card reveal">
+        <div class="pain-num">04</div>
+        <div><div class="pain-title">Reseñas sin respuesta, reputación sin gestionar</div><div class="pain-desc">Una reseña negativa sin responder pesa más de lo que crees. Y las positivas que nadie pide, tampoco llegan solas.</div></div>
+      </div>
+      <div class="pain-card reveal reveal-d1">
+        <div class="pain-num">05</div>
+        <div><div class="pain-title">Sin datos para tomar decisiones</div><div class="pain-desc">No sabes qué funciona, qué no, ni de dónde vienen tus clientes. El marketing sin datos es dinero quemado.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ SOLUCIÓN ══════════ -->
+<section class="solucion" id="solucion">
+  <div class="solucion-inner">
+    <div class="solucion-header reveal">
+      <div class="section-eyebrow">Lo que hacemos</div>
+      <h2 class="display">Todo lo que necesitas para<br><em>generar reservas,</em> en un solo lugar.</h2>
+      <p>No vendemos servicios sueltos. Construimos un sistema completo que trabaja para llenar tu restaurante de forma constante, semana tras semana.</p>
+    </div>
+    <div class="servicios-grid">
+      <div class="servicio reveal">
+        <div class="servicio-num">01</div>
+        <div class="servicio-title">Campañas locales de captación</div>
+        <div class="servicio-desc">Publicidad en Meta y Google diseñada para atraer comensales de tu zona. Segmentación precisa por barrio, horario y perfil. Cada euro invertido, orientado a generar reservas reales.</div>
+        <span class="servicio-tag">Alto impacto</span>
+      </div>
+      <div class="servicio reveal reveal-d1">
+        <div class="servicio-num">02</div>
+        <div class="servicio-title">Gestión de reservas 24/7</div>
+        <div class="servicio-desc">Un asistente automático atiende cada consulta, gestiona reservas y envía recordatorios — incluso cuando tu equipo está en pleno servicio. Cero mesas perdidas por falta de respuesta.</div>
+        <span class="servicio-tag">Automatización</span>
+      </div>
+      <div class="servicio reveal reveal-d2">
+        <div class="servicio-num">03</div>
+        <div class="servicio-title">Contenido para redes sociales</div>
+        <div class="servicio-desc">Instagram y TikTok con presencia constante y estratégica. Contenido pensado para atraer, no solo para publicar. Reels, fotos y copies que convierten seguidores en clientes.</div>
+        <span class="servicio-tag">Visibilidad</span>
+      </div>
+      <div class="servicio reveal">
+        <div class="servicio-num">04</div>
+        <div class="servicio-title">Posicionamiento en Google Maps</div>
+        <div class="servicio-desc">Optimización completa de tu ficha de Google Business para que aparezcas cuando alguien busca un restaurante en tu zona. Más visibilidad, más tráfico, más mesas.</div>
+        <span class="servicio-tag">SEO local</span>
+      </div>
+      <div class="servicio reveal reveal-d1">
+        <div class="servicio-num">05</div>
+        <div class="servicio-title">Reputación y reseñas</div>
+        <div class="servicio-desc">Monitorización y respuesta a reseñas en Google, TripAdvisor y TheFork. Estrategia para generar más valoraciones positivas. Tu reputación online, siempre cuidada.</div>
+        <span class="servicio-tag">Confianza</span>
+      </div>
+      <div class="servicio reveal reveal-d2">
+        <div class="servicio-num">06</div>
+        <div class="servicio-title">Email y WhatsApp marketing</div>
+        <div class="servicio-desc">Comunicación directa con tus clientes para eventos, menús de temporada y promociones. Clientes que repiten. Mesas que se llenan antes de abrir.</div>
+        <span class="servicio-tag">Fidelización</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ PROCESO ══════════ -->
+<section class="proceso" id="proceso">
+  <div class="proceso-inner">
+    <div class="proceso-header reveal">
+      <div class="section-eyebrow">Cómo funciona</div>
+      <h2 class="display">De restaurante vacío a<br><em>agenda llena,</em> en 4 pasos.</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-marker"><span>I</span></div>
+        <div class="step-title">Analizamos tu situación</div>
+        <div class="step-desc">Auditamos tu presencia digital, tu competencia local y tus oportunidades reales. Sin coste. Sin compromiso. Con total honestidad.</div>
+      </div>
+      <div class="step reveal reveal-d1">
+        <div class="step-marker"><span>II</span></div>
+        <div class="step-title">Diseñamos tu estrategia</div>
+        <div class="step-desc">Creamos un plan a medida: qué canales activar, qué mensajes usar, qué acciones van a generar más reservas en tu caso concreto.</div>
+      </div>
+      <div class="step reveal reveal-d2">
+        <div class="step-marker"><span>III</span></div>
+        <div class="step-title">Activamos y ejecutamos</div>
+        <div class="step-desc">Lanzamos campañas, activamos automatizaciones, publicamos contenido. Todo en marcha en menos de 15 días. Tú te centras en el servicio.</div>
+      </div>
+      <div class="step reveal reveal-d3">
+        <div class="step-marker"><span>IV</span></div>
+        <div class="step-title">Medimos y escalamos</div>
+        <div class="step-desc">Cada mes analizamos los resultados contigo. Lo que funciona, lo potenciamos. Lo que no, lo ajustamos. Transparencia total, siempre.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ POR QUÉ ══════════ -->
+<section class="porque" id="porque">
+  <div class="porque-inner">
+    <div class="porque-left reveal">
+      <div class="section-eyebrow">Por qué RestaurAI</div>
+      <h2 class="display">Una agencia que solo<br>trabaja con <em>restaurantes.</em></h2>
+      <p>No somos una agencia genérica. Cada estrategia, cada campaña y cada decisión está construida con el sector de la restauración en mente. Conocemos sus ritmos, su lenguaje y sus retos.</p>
+      <button class="btn-main js-scroll-form" style="margin-top:2.5rem;">Reservar llamada gratuita</button>
+    </div>
+    <div class="porque-right">
+      <div class="razon reveal"><span class="razon-icon">◈</span><div><div class="razon-title">Especialización real en hostelería</div><div class="razon-desc">No adaptamos estrategias genéricas. Sabemos lo que funciona en restaurantes porque es lo único en lo que trabajamos.</div></div></div>
+      <div class="razon reveal reveal-d1"><span class="razon-icon">◈</span><div><div class="razon-title">Trato directo, sin intermediarios</div><div class="razon-desc">Siempre hablas con quien gestiona tu proyecto. Sin cuentas que rotan, sin perder el hilo, sin repetir lo mismo cada mes.</div></div></div>
+      <div class="razon reveal reveal-d2"><span class="razon-icon">◈</span><div><div class="razon-title">Transparencia total cada mes</div><div class="razon-desc">Un informe claro con lo que se ha hecho y cómo está evolucionando tu presencia. Sin letra pequeña.</div></div></div>
+      <div class="razon reveal"><span class="razon-icon">◈</span><div><div class="razon-title">Sin permanencia ni ataduras</div><div class="razon-desc">Nos comprometemos con resultados, no con contratos largos. Si no ves valor, eres libre de marcharte cuando quieras.</div></div></div>
+      <div class="razon reveal reveal-d1"><span class="razon-icon">◈</span><div><div class="razon-title">Operativo en menos de 15 días</div><div class="razon-desc">Sin burocracia ni esperas. Auditamos, planificamos y activamos tu estrategia en días, no en meses.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ PARA QUIÉN ══════════ -->
+<section class="para-quien" id="para-quien">
+  <div class="para-quien-inner">
+    <div class="section-eyebrow reveal" style="justify-content:center;">Para quién es esto</div>
+    <h2 class="display reveal">Trabajamos con restaurantes<br>que quieren <em>crecer en serio.</em></h2>
+    <p class="para-quien-sub reveal">No para todo el mundo. Solo para restaurantes con un producto sólido que quieren ocupar las mesas que están dejando vacías cada semana.</p>
+    <div class="tipos-grid reveal">
+      <div class="tipo"><div class="tipo-icon">🍽️</div><div class="tipo-title">Restaurantes de autor</div><div class="tipo-desc">Con cocina cuidada y propuesta clara, pero sin visibilidad digital acorde a su nivel.</div></div>
+      <div class="tipo"><div class="tipo-icon">🥩</div><div class="tipo-title">Asadores y parrillas</div><div class="tipo-desc">Negocios con clientela fiel pero que no saben cómo atraer clientes nuevos entre semana.</div></div>
+      <div class="tipo"><div class="tipo-icon">🍕</div><div class="tipo-title">Restaurantes de barrio</div><div class="tipo-desc">Locales con historia y comunidad, pero con presencia digital que no los representa bien.</div></div>
+      <div class="tipo"><div class="tipo-icon">🥂</div><div class="tipo-title">Restaurantes de eventos</div><div class="tipo-desc">Espacios con capacidad para grupos y celebraciones que no están aprovechando esa demanda.</div></div>
+      <div class="tipo"><div class="tipo-icon">🌮</div><div class="tipo-title">Propuestas temáticas</div><div class="tipo-desc">Conceptos originales con mucho potencial en redes, pero sin estrategia de contenido que lo explote.</div></div>
+      <div class="tipo"><div class="tipo-icon">🏨</div><div class="tipo-title">Restaurantes de hotel</div><div class="tipo-desc">Con gran infraestructura, pero marketing enfocado al turista y no al cliente local recurrente.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ CTA FINAL ══════════ -->
+<section class="cta-final" id="contacto">
+  <div class="cta-glow"></div>
+  <div class="section-eyebrow reveal">Empecemos</div>
+  <h2 class="display reveal">¿Cuántas mesas vacías<br>puedes permitirte <em>perder?</em></h2>
+  <p class="reveal">Solicita una auditoría gratuita de tu presencia digital. Sin compromiso. En 48 horas tienes un diagnóstico real y un plan de acción concreto.</p>
+  <div class="hero-ctas reveal">
+    <button class="btn-main js-scroll-form">Solicitar auditoría gratuita</button>
+    <a href="https://instagram.com/restaurai.agency" target="_blank" rel="noopener" class="btn-ghost">@restaurai.agency</a>
+  </div>
+  <p class="cta-note reveal">Sin permanencia &nbsp;·&nbsp; Sin compromiso &nbsp;·&nbsp; Respuesta en menos de 24h</p>
+</section>
+
+<!-- ══════════ FORMULARIO (FormSubmit) ══════════ -->
+<section class="auditoria" id="auditoria">
+  <div class="auditoria-inner">
+    <div class="auditoria-header reveal">
+      <div class="section-eyebrow">Formulario</div>
+      <h2 class="display">Solicita tu auditoría<br><em>gratuita.</em></h2>
+      <p class="auditoria-sub">Cuéntanos un poco sobre tu restaurante. Te respondemos en menos de 24 horas con un análisis honesto de tu situación digital.</p>
+    </div>
+
+    <!-- FormSubmit: el primer envío requiere confirmar el email desde la bandeja de entrada -->
+    <form
+      class="audit-form reveal"
+      id="auditForm"
+      action="https://formsubmit.co/restaurai.agency@gmail.com"
+      method="POST"
+      novalidate
+    >
+      <!-- Configuración FormSubmit -->
+      <input type="hidden" name="_subject"  value="Nueva solicitud de auditoría — RestaurAI">
+      <input type="hidden" name="_template" value="table">
+      <input type="hidden" name="_captcha"  value="false">
+      <input type="hidden" name="_next"     value=""><!-- se rellena por JS con la URL actual -->
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="f-restaurante">Nombre del restaurante <span class="req">*</span></label>
+          <input type="text" id="f-restaurante" name="Restaurante" placeholder="El Rincón de Madrid" required>
+        </div>
+        <div class="form-group">
+          <label for="f-contacto">Nombre de contacto <span class="req">*</span></label>
+          <input type="text" id="f-contacto" name="Contacto" placeholder="Tu nombre" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="f-localizacion">Localización <span class="req">*</span></label>
+          <input type="text" id="f-localizacion" name="Localizacion" placeholder="Barcelona" required>
+        </div>
+        <div class="form-group">
+          <label for="f-instagram">Instagram del restaurante</label>
+          <div class="input-prefix-wrap">
+            <span class="input-prefix">@</span>
+            <input type="text" id="f-instagram" name="Instagram" placeholder="turestaurante" class="input-with-prefix" autocomplete="off" autocorrect="off" spellcheck="false">
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="f-telefono">Teléfono / WhatsApp <span class="req">*</span></label>
+          <div class="input-prefix-wrap">
+            <span class="input-prefix">+34</span>
+            <input type="tel" id="f-telefono" placeholder="612 34 56 78" class="input-with-prefix" autocomplete="tel" required>
+          </div>
+          <!-- Campo oculto que recibe el valor completo formateado para FormSubmit -->
+          <input type="hidden" id="f-telefono-full" name="Telefono">
+        </div>
+        <div class="form-group">
+          <label for="f-dias">¿Qué días son más flojos? <span class="req">*</span></label>
+          <select id="f-dias" name="Dias_flojos" required>
+            <option value="" disabled selected>Selecciona una opción</option>
+            <option>Lunes y martes</option>
+            <option>Lunes, martes y miércoles</option>
+            <option>Toda la semana laboral</option>
+            <option>Domingos</option>
+            <option>Varía según temporada</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="f-comentario">Comentario adicional</label>
+        <textarea id="f-comentario" name="Comentario" rows="4" placeholder="Cuéntanos lo que quieras: qué has probado antes, cuál es tu mayor reto, qué tipo de cliente buscas..."></textarea>
+      </div>
+
+      <div class="form-footer" id="formFooter">
+        <button type="submit" class="btn-main form-submit" id="submitBtn">Enviar solicitud</button>
+        <p class="form-legal">Tus datos no se comparten con terceros. Solo los usamos para contactarte sobre tu auditoría.</p>
+      </div>
+
+      <!-- Estado de éxito (oculto por defecto) -->
+      <div class="form-state" id="formSuccess">
+        <div class="state-icon">◆</div>
+        <p class="state-title">¡Solicitud enviada!</p>
+        <p class="state-desc">Hemos recibido tu información.<br>Nos pondremos en contacto contigo en menos de 24 horas.</p>
+      </div>
+
+      <!-- Estado de error (oculto por defecto) -->
+      <div class="form-state" id="formError">
+        <div class="state-icon" style="color:#9B3A2E;">✕</div>
+        <p class="state-title" style="color:var(--white);">Algo ha salido mal</p>
+        <p class="state-desc">Por favor escríbenos directamente a<br><a href="mailto:restaurai.agency@gmail.com" style="color:var(--gold);">restaurai.agency@gmail.com</a></p>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer>
+  <div class="footer-logo">Restaur<span>AI</span></div>
+  <div class="footer-links">
+    <a href="#solucion">Servicios</a>
+    <a href="#proceso">Cómo funciona</a>
+    <a href="mailto:restaurai.agency@gmail.com">restaurai.agency@gmail.com</a>
+    <a href="https://instagram.com/restaurai.agency" target="_blank" rel="noopener">Instagram</a>
+  </div>
+  <div class="footer-copy">© 2025 RestaurAI · restaurai.agency</div>
+</footer>
+
+<!-- ══════════ JS ══════════ -->
+<script>
+/* ── 1. CURSOR (solo si el dispositivo tiene puntero fino) ── */
+const isTouch = window.matchMedia('(pointer: coarse)').matches;
+const cur  = document.getElementById('cur');
+const curR = document.getElementById('cur-r');
+
+if (!isTouch) {
+  let mx = 0, my = 0, rx = 0, ry = 0;
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cur.style.left = mx + 'px';
+    cur.style.top  = my + 'px';
+  });
+
+  (function loop() {
+    rx += (mx - rx) * 0.11;
+    ry += (my - ry) * 0.11;
+    curR.style.left = rx + 'px';
+    curR.style.top  = ry + 'px';
+    requestAnimationFrame(loop);
+  })();
+
+  document.querySelectorAll('a, button, .servicio, .pain-card, .razon, .tipo, .step').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      cur.style.transform  = 'translate(-50%,-50%) scale(2.5)';
+      curR.style.width     = '44px';
+      curR.style.height    = '44px';
+      curR.style.borderColor = 'var(--gold)';
+    });
+    el.addEventListener('mouseleave', () => {
+      cur.style.transform  = 'translate(-50%,-50%) scale(1)';
+      curR.style.width     = '28px';
+      curR.style.height    = '28px';
+      curR.style.borderColor = 'var(--gold-dim)';
+    });
+  });
+}
+
+/* ── 2. NAV scroll ── */
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 60);
+});
+
+/* ── 3. Scroll suave a formulario desde cualquier CTA ── */
+document.querySelectorAll('.js-scroll-form').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById('auditoria').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+/* ── 4. Reveal on scroll ── */
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('in');
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+/* ── 5. FORMULARIO — lógica completa ── */
+const form        = document.getElementById('auditForm');
+const submitBtn   = document.getElementById('submitBtn');
+const formFooter  = document.getElementById('formFooter');
+const successBox  = document.getElementById('formSuccess');
+const errorBox    = document.getElementById('formError');
+
+// ── _next para fallback nativo
+form.querySelector('[name="_next"]').value = window.location.href + '?enviado=1';
+
+// ── Instagram: limpiar @ inicial duplicado y normalizar
+const igInput = document.getElementById('f-instagram');
+function normalizeIg(val) {
+  // Quitar todos los @ del inicio, luego trim
+  return val.replace(/^@+/, '').trim();
+}
+igInput.addEventListener('input', () => {
+  const pos = igInput.selectionStart;
+  const raw = igInput.value;
+  const clean = raw.replace(/^@+/, '');
+  if (raw !== clean) {
+    igInput.value = clean;
+    // Reposicionar cursor si cambia longitud
+    igInput.setSelectionRange(Math.max(0, pos - (raw.length - clean.length)), Math.max(0, pos - (raw.length - clean.length)));
+  }
+});
+igInput.addEventListener('blur', () => {
+  igInput.value = normalizeIg(igInput.value);
+});
+
+// ── Teléfono: formateo automático XXX XX XX XX
+const telInput     = document.getElementById('f-telefono');
+const telFullInput = document.getElementById('f-telefono-full');
+
+function onlyDigits(str) {
+  return str.replace(/\D/g, '');
+}
+function stripSpanishPrefix(str) {
+  // Quitar +34 o 0034 si el usuario los escribe
+  return str.replace(/^\+34\s?/, '').replace(/^0034\s?/, '');
+}
+function formatPhone(digits) {
+  // Máximo 9 dígitos (número español sin prefijo)
+  const d = digits.slice(0, 9);
+  if (d.length <= 3) return d;
+  if (d.length <= 5) return d.slice(0,3) + ' ' + d.slice(3);
+  if (d.length <= 7) return d.slice(0,3) + ' ' + d.slice(3,5) + ' ' + d.slice(5);
+  return d.slice(0,3) + ' ' + d.slice(3,5) + ' ' + d.slice(5,7) + ' ' + d.slice(7);
+}
+
+telInput.addEventListener('input', function() {
+  const raw    = this.value;
+  const noPrefix = stripSpanishPrefix(raw);
+  const digits = onlyDigits(noPrefix);
+  const formatted = formatPhone(digits);
+  // Sólo actualizar si cambia para no mover el cursor innecesariamente
+  if (this.value !== formatted) this.value = formatted;
+  // Actualizar campo oculto con valor completo
+  telFullInput.value = digits.length ? '+34 ' + formatted : '';
+});
+telInput.addEventListener('blur', function() {
+  const digits = onlyDigits(stripSpanishPrefix(this.value));
+  this.value = formatPhone(digits);
+  telFullInput.value = digits.length ? '+34 ' + formatPhone(digits) : '';
+});
+
+// ── Validación: campos required + teléfono con wrap prefix
+function validateForm() {
+  let ok = true;
+
+  // Campos required normales
+  form.querySelectorAll('input[required]:not(#f-telefono), select[required]').forEach(field => {
+    field.classList.remove('error');
+    const wrap = field.closest('.input-prefix-wrap');
+    if (wrap) wrap.classList.remove('error');
+    if (!field.value.trim()) {
+      field.classList.add('error');
+      if (wrap) wrap.classList.add('error');
+      ok = false;
+    }
+  });
+
+  // Teléfono (campo visual, no el hidden)
+  const digits = onlyDigits(stripSpanishPrefix(telInput.value));
+  const telWrap = telInput.closest('.input-prefix-wrap');
+  telWrap.classList.remove('error');
+  if (digits.length < 9) {
+    telWrap.classList.add('error');
+    ok = false;
+  }
+
+  return ok;
+}
+
+// Limpiar errores al escribir
+form.querySelectorAll('input[required]:not(#f-telefono), select[required]').forEach(f => {
+  f.addEventListener('input', () => {
+    f.classList.remove('error');
+    const wrap = f.closest('.input-prefix-wrap');
+    if (wrap) wrap.classList.remove('error');
+  });
+});
+telInput.addEventListener('input', () => {
+  telInput.closest('.input-prefix-wrap').classList.remove('error');
+});
+
+// ── Envío
+form.addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  if (!validateForm()) {
+    const firstErr = form.querySelector('.error, .input-prefix-wrap.error .input-with-prefix');
+    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  // Asegurar que el Instagram va con @ en el FormData
+  const igVal = igInput.value.trim();
+  igInput.value = igVal; // ya sin @, el prefijo visual lo muestra
+
+  // Asegurar teléfono completo en el hidden
+  const digits = onlyDigits(stripSpanishPrefix(telInput.value));
+  telFullInput.value = '+34 ' + formatPhone(digits);
+
+  // Estado de carga
+  submitBtn.classList.add('sending');
+  submitBtn.textContent = 'Enviando';
+
+  try {
+    const data = new FormData(form);
+
+    // Sobrescribir Instagram en el FormData con el @ incluido
+    if (igVal) data.set('Instagram', '@' + igVal);
+
+    const res = await fetch('https://formsubmit.co/restaurai.agency@gmail.com', {
+      method: 'POST',
+      body: data,
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (res.ok) {
+      form.querySelectorAll('.form-row, .form-group--full').forEach(el => el.style.display = 'none');
+      formFooter.style.display = 'none';
+      successBox.classList.add('active');
+      form.reset();
+      telFullInput.value = '';
+    } else {
+      throw new Error('server');
+    }
+  } catch {
+    submitBtn.classList.remove('sending');
+    submitBtn.textContent = 'Enviar solicitud';
+    errorBox.classList.add('active');
+    setTimeout(() => errorBox.classList.remove('active'), 6000);
+  }
+});
+
+// Fallback nativo: si llega con ?enviado=1
+if (window.location.search.includes('enviado=1')) {
+  form.querySelectorAll('.form-row, .form-group--full').forEach(el => el.style.display = 'none');
+  formFooter.style.display = 'none';
+  successBox.classList.add('active');
+}
+</script>
+</body>
+</html>
